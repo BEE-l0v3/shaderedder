@@ -1,6 +1,9 @@
-from pydantic import BaseModel
-from pydantic import EmailStr
-from pydantic import conint
+from pydantic import (
+                BaseModel,
+                EmailStr,
+                conint,
+                field_validator,
+)
 from typing import Literal
 from datetime import datetime
 import enum 
@@ -21,21 +24,27 @@ class Role(int, enum.Enum):
 
 class UserBase(BaseModel):
     username: str
-    email: EmailStr
 
 class UserLogin(UserBase):
     password: str
 
+class UserRegister(UserLogin):
+    email: EmailStr
 
 class UserView(UserBase):
     id: int
     is_activated: bool
     role: Role
+    email: EmailStr
 
 class PageOptions(BaseModel):
     limit: PageSize = PageSize.SMALL
     offset: conint(ge=0) = 0
 
-class JWTPayload(BaseModel):
-    sub: str 
-    exp: datetime
+class Token(BaseModel):
+    access_token: str 
+    token_type: str = 'bearer'
+
+class EmailData(BaseModel):
+    html_content: str
+    subject: str

@@ -1,53 +1,82 @@
 from sqlalchemy import select
 
+
 from app.db.ext import connection
 from app.db.users.schemas import UsersOrm
 
-from app.models import UserBase, UserLogin, UserView, PageOptions
+from app.models import UserBase, UserLogin, UserView, PageOptions, Role
+from app.core.config import settings
+
+from app.security.password import get_password_hash, verify_password
 
 import app.security
 
 
+@connection 
+async def init_users(session):
+    admin = UsersOrm(username='admin', 
+                     email=settings.FIRST_SUPERUSER, 
+                     password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD), 
+                     is_activated=True, 
+                     role=Role.ADMIN
+    )
+    session.add(admin)
+    await session.commit()
+
 @connection
 async def get_users(options: PageOptions, session):
-    result = await session.execute(select(UsersOrm))
+    result = await session.execute(select(UsersOrm).offset(options.offset).limit(options.limit))
     users = result.scalars().all()
-    users = [UserView(id=u.id, username=u.username, email=u.email, is_activated=u.is_activated) for u in users]
     return users
 
 
 @connection
-async def get_user_by_username(username: str):
+async def get_user_by_username(username: str, session):
     result = await session.execute(select(UsersOrm).where(UsersOrm.username == username))
     user = result.scalars().first()
-    return UserView(id=user.id, username=user.username, email=user.email, is_activated=user.is_activated, role=user.role)
+    return user
 
 
 @connection
-async def add_user(user: UserLogin, session):
-    new_user = UsersOrm(username=user.username, email=user.email, password=user.password)
+async def add_user(user: UserLogin, session, is_activated: bool =False, role: Role = Role.USER):
+    new_user = UsersOrm(username=user.username, email=user.email, password=user.password, is_activated=is_activated, role=role)
     session.add(new_user)
     await session.commit()
 
-
-"""
 @connection 
-async def get_current_user(token: TokenDep, session) -> User:
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-    except (InvalidTokenError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
-    user = await session.get(UserOrm, token_data.sub)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if not user.is_activated:
-        raise HTTPException(status_code=status.HTTP_400, detail="User is not activated")
-    user = User(username=user.username, email=user.email, password=user.password)
-    return user
-"""
+async def del_user(username: str, session):
+    user = await get_user_by_username(username)
+    if user:
+        session.delete(user)
+        await session.commit()
+
+@connection 
+async def activate_user(username: str, session):
+    user = await get_user_by_username(username)
+    if user:
+        user.is_activated = True 
+        await session.commit()
+
+@connection 
+async def deactivate_user(username: str, session):
+    user = await get_user_by_username(username)
+    if user:
+        user.is_activated = False
+        await session.commit()
+
+@connection 
+async def set_user_password(username: str, password: str, session):
+    user = await get_user_by_username(username)
+    if user: 
+        user.password = password 
+        await session.commit()
+
+
+async def authenticate(user: UserLogin):
+    db_user = await get_user_by_username(user.username)
+    if not db_user:
+        return None 
+    if not verify_password(user.password, db_user.password):
+        return None
+    return db_user
+

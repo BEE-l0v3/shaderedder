@@ -1,17 +1,91 @@
 version: '3.8'
 
 services:
+
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
+
+
+  pgadmin:
+    image: dpage/pgadmin4:9.1.0
+    restart: always
+    ports:
+      - 15432:80
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    env_file:
+      - .env
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+      - PGADMIN_LISTEN_PORT=80
+
+
   backend:
-    build: ./services/backend
+    build: '${DOCKER_IMAGE_BACKEND?Variable not set}'
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
     ports:
       - 5000:5000 
+    env_file:
+      - .env
+    environment:
+      - DOMAIN=${DOMAIN}
+      - FRONTEND_HOST=${FRONTEND_HOST?Variable not set}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - SECRET_KEY=${SECRET_KEY?Variable not set}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - SENTRY_DSN=${SENTRY_DSN}
     volumes:
       - ./services/backend:/app
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
+
+
   frontend:
-    build: ./services/frontend
+    build: '${DOCKER_IMAGE_FRONTEND?Variable not set}'
     ports:
       - 8080:8080
     volumes:
       - ./services/frontend:/app 
     command: yarn serve
+
+volumes:
+  app-db-data:
+  pgadmin:

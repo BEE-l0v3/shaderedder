@@ -2,8 +2,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase
+from app.core.config import settings
 
-URL_DATABASE = 'postgresql+asyncpg://regular:passforregular@localhost:5432/dbShaderedder'
+URL_DATABASE = (settings.SQLALCHEMY_DATABASE_URI.unicode_string())
 
 engine = create_async_engine(
     url=URL_DATABASE,

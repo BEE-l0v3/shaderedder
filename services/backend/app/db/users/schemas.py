@@ -19,7 +19,6 @@ class UsersOrm(Base):
 
 class UsersOrm(Base):
     __tablename__ = 'Users'
-    __table_args__ = {'schema': 'Users'}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(unique=True)
