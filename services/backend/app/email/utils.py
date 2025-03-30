@@ -10,7 +10,10 @@ from jinja2 import Template
 from jwt.exceptions import InvalidTokenError
 
 from app.core.config import settings
-from app.models import EmailData
+from app.models import EmailData, EmailStatus
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
@@ -44,11 +47,12 @@ def send_email(
         smtp_options["password"] = settings.SMTP_PASSWORD
     response = message.send(to=email_to, smtp=smtp_options)
     logger.info(f"send email result: {response}")
+    return EmailStatus(status_code=response.status_code, status_text=response.status_text)
 
 
 def generate_account_activation_email(email_to: str, username: str, token: str) -> EmailData:
     project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - Account validation {email}"
+    subject = f"{project_name} - Подтверждение почтового адреса"
     link = f"{settings.FRONTEND_HOST}/activate-account?token={token}"
     html_content = render_email_template(
         template_name="activate_account.html",

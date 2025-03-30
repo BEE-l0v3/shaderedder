@@ -39,37 +39,51 @@ async def get_user_by_username(username: str, session):
 
 @connection
 async def add_user(user: UserLogin, session, is_activated: bool =False, role: Role = Role.USER):
+    new_user = UsersOrm(username=user.username, email=user.email, password=get_password_hash(user.password), is_activated=is_activated, role=role)
+    session.add(new_user)
+    await session.commit()
+
+@connection
+async def add_user_plain(user: UserLogin, session, is_activated: bool =False, role: Role = Role.USER):
     new_user = UsersOrm(username=user.username, email=user.email, password=user.password, is_activated=is_activated, role=role)
     session.add(new_user)
     await session.commit()
 
 @connection 
 async def del_user(username: str, session):
-    user = await get_user_by_username(username)
-    if user:
-        session.delete(user)
-        await session.commit()
+    result = await session.execute(select(UsersOrm).where(UsersOrm.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise ValueError("user not found")
+    session.delete(user)
+    await session.commit()
 
 @connection 
 async def activate_user(username: str, session):
-    user = await get_user_by_username(username)
-    if user:
-        user.is_activated = True 
-        await session.commit()
+    result = await session.execute(select(UsersOrm).where(UsersOrm.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise ValueError("user not found")
+    user.is_activated = True 
+    await session.commit()
 
 @connection 
 async def deactivate_user(username: str, session):
-    user = await get_user_by_username(username)
-    if user:
-        user.is_activated = False
-        await session.commit()
+    result = await session.execute(select(UsersOrm).where(UsersOrm.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise ValueError("user not found")
+    user.is_activated = False
+    await session.commit()
 
 @connection 
 async def set_user_password(username: str, password: str, session):
-    user = await get_user_by_username(username)
-    if user: 
-        user.password = password 
-        await session.commit()
+    result = await session.execute(select(UsersOrm).where(UsersOrm.username == username))
+    user = result.scalars().first()
+    if not user:
+        raise ValueError("user not found")
+    user.password = password 
+    await session.commit()
 
 
 async def authenticate(user: UserLogin):

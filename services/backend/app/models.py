@@ -48,3 +48,14 @@ class Token(BaseModel):
 class EmailData(BaseModel):
     html_content: str
     subject: str
+
+class Message(BaseModel):
+    success: bool
+    comment: str = ""
+
+class MessageRegister(Message):
+    activated: bool
+
+class EmailStatus(BaseModel):
+    status_code: int
+    status_text: str

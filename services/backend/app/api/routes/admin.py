@@ -1,4 +1,4 @@
-from app.models import UserLogin, PageOptions, PageSize, Role, UserView
+from app.models import UserRegister, PageOptions, PageSize, Role, UserView, Message
 from app.db.users import get_users, add_user 
 from app.api.routes.login import CurrentUser
 
@@ -27,10 +27,10 @@ async def router_get_users(options: PageOptions= Depends(get_page_options)):
     return result
 
 @router.post("/add-user", dependencies=[Depends(get_current_user_admin)])
-async def router_add_user(user: UserLogin):
+async def router_add_user(user: UserRegister):
     try:
         await add_user(user, is_activated=True)
-        return {'success': True}
+        return Message(success=True)
     except Exception as e:
-        return {'success': False}
+        return Message(success=False)
 
